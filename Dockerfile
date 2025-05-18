@@ -38,8 +38,8 @@ USER appuser
 # Copy only the application code with correct ownership using --chown
 COPY --chown=appuser:appuser . /app/
 
-# Expose default port (for local dev); actual port is provided by Railway
+# Expose the expected port
 EXPOSE 8000
 
-# Start FastAPI with dynamic port from Railway or default to 8000 locally
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run the app on a fixed port (Railway will match it via PORT=8000)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
