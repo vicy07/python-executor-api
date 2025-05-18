@@ -49,12 +49,13 @@ async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
         file_path = f.name
 
     try:
-            first_line = payload.code.strip().splitlines()[0]
-    if first_line.startswith("# pip:"):
-        packages = first_line.replace("# pip:", "").strip()
-        subprocess.run(["pip", "install"] + packages.split(), check=False)
+        # Auto-install dependencies from # pip: ...
+        first_line = payload.code.strip().splitlines()[0]
+        if first_line.startswith("# pip:"):
+            packages = first_line.replace("# pip:", "").strip()
+            subprocess.run(["pip", "install"] + packages.split(), check=False)
 
-    result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15)
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,
