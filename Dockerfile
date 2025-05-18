@@ -27,9 +27,9 @@ RUN apt-get update && \
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Ensure pip cache is accessible
-RUN mkdir -p /home/appuser/.cache/pip && \
-    chown -R appuser:appuser /home/appuser/.cache
+# Ensure pip cache and local install directories are accessible
+RUN mkdir -p /home/appuser/.cache/pip /home/appuser/.local && \
+    chown -R appuser:appuser /home/appuser/.cache /home/appuser/.local
 
 # Set the working directory and ownership preemptively
 WORKDIR /app
