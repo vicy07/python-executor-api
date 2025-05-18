@@ -44,17 +44,16 @@ class GitRequest(BaseModel):
 
 @app.post("/run", summary="Run inline Python code")
 async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
+    code_lines = payload.code.strip().splitlines()
+    if code_lines and code_lines[0].startswith("# pip:"):
+        packages = code_lines[0].replace("# pip:", "").strip()
+        subprocess.run(["pip", "install"] + packages.split(), check=False)
+
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(payload.code)
         file_path = f.name
 
     try:
-        # Auto-install dependencies from # pip: ...
-        first_line = payload.code.strip().splitlines()[0]
-        if first_line.startswith("# pip:"):
-            packages = first_line.replace("# pip:", "").strip()
-            subprocess.run(["pip", "install"] + packages.split(), check=False)
-
         result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15)
         return {
             "stdout": result.stdout,
