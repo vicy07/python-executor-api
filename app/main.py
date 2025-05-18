@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Request, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import Optional
 import subprocess
 import tempfile
-import logging
 import os
 from git import Repo
 
@@ -13,24 +13,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
+security = HTTPBearer()
 EXPECTED_TOKEN = os.getenv("EXEC_API_TOKEN", "changeme")
 
 
-def validate_token(request: Request, authorization: Optional[str]):
-    logger = logging.getLogger("token-check")
-    logger.setLevel(logging.INFO)
-    logging.basicConfig(level=logging.INFO)
-
-    logger.info(f"Authorization header: {authorization}")
-    logger.info(f"Query token: {request.query_params.get('token')}")
-
-    token = request.query_params.get("token")
-    header_token = None
-    if authorization and authorization.lower().startswith("bearer "):
-        header_token = authorization[7:]
-
-    final_token = token or header_token
-    if final_token != EXPECTED_TOKEN:
+def validate_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    token = credentials.credentials
+    if token != EXPECTED_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -44,8 +35,7 @@ class GitRequest(BaseModel):
 
 
 @app.post("/run", summary="Run inline Python code")
-async def run_code(request: Request, payload: CodeRequest, authorization: Optional[str] = Header(None)):
-    validate_token(request, authorization)
+async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(payload.code)
         file_path = f.name
@@ -62,9 +52,7 @@ async def run_code(request: Request, payload: CodeRequest, authorization: Option
 
 
 @app.post("/run-from-git", summary="Run Python code from Git repo")
-async def run_from_git(request: Request, payload: GitRequest, authorization: Optional[str] = Header(None)):
-    validate_token(request, authorization)
-
+async def run_from_git(payload: GitRequest, auth=Depends(validate_token)):
     tmp_dir = tempfile.mkdtemp()
     try:
         Repo.clone_from(payload.repo_url, tmp_dir, branch=payload.branch)
@@ -81,6 +69,7 @@ async def run_from_git(request: Request, payload: GitRequest, authorization: Opt
         }
     finally:
         os.system(f"rm -rf {tmp_dir}")
+
 
 @app.get("/", summary="Redirect info")
 async def root():
