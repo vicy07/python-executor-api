@@ -1,10 +1,21 @@
+# Use a minimal official Python image
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-COPY requirements.txt .
+# Install Python dependencies
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app/ ./app/
+# Copy application code
+COPY . /app
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Install Git to enable cloning repositories
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Start the FastAPI app with dynamic port from Railway (fallback to 8000 locally)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
