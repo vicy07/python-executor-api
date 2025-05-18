@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 import subprocess
 import tempfile
 import os
@@ -11,7 +11,7 @@ from git import Repo
 app = FastAPI(
     title="Python Execution API",
     description="Execute Python code inline or from a Git repository with internet access and dependency management.",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 security = HTTPBearer()
@@ -27,7 +27,8 @@ def validate_token(
 
 
 class CodeRequest(BaseModel):
-    code: str = Field(..., example="print('Hello, AI!')")
+    code: str = Field(..., example="print('Hello')")
+    imports: Optional[List[str]] = Field(default=[], example=["requests"])
 
 
 class GitRequest(BaseModel):
@@ -37,10 +38,8 @@ class GitRequest(BaseModel):
 
 @app.post("/run", summary="Run inline Python code")
 async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
-    code_lines = payload.code.strip().splitlines()
-    if code_lines and code_lines[0].startswith("# pip:"):
-        packages = code_lines[0].replace("# pip:", "").strip()
-        subprocess.run(["pip", "install", "--user"] + packages.split(), check=False)
+    if payload.imports:
+        subprocess.run(["pip", "install", "--user"] + payload.imports, check=False)
 
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(payload.code)
