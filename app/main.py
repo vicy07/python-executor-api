@@ -16,6 +16,13 @@ EXPECTED_TOKEN = os.getenv("EXEC_API_TOKEN", "changeme")
 
 
 def validate_token(request: Request, authorization: Optional[str]):
+    logger = logging.getLogger("token-check")
+    logger.setLevel(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
+
+    logger.info(f"Authorization header: {authorization}")
+    logger.info(f"Query token: {request.query_params.get('token')}")
+
     token = request.query_params.get("token")
     header_token = None
     if authorization and authorization.lower().startswith("bearer "):
@@ -73,3 +80,11 @@ async def run_from_git(request: Request, payload: GitRequest, authorization: Opt
         }
     finally:
         os.system(f"rm -rf {tmp_dir}")
+
+@app.get("/", summary="Redirect info")
+async def root():
+    return {
+        "message": "Welcome to Python Executor API",
+        "docs": "/docs",
+        "repository": "https://github.com/vicy07/python-executor-api"
+    }
