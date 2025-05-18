@@ -54,9 +54,7 @@ async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
         file_path = f.name
 
     try:
-        env = os.environ.copy()
-    env["PYTHONPATH"] = "/home/appuser/.local/lib/python3.13/site-packages"
-    result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15, env=env)
+        result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15)
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,
