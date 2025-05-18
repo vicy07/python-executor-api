@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import subprocess
 import tempfile
+import logging
 import os
 from git import Repo
 
