@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Optional
 import subprocess
@@ -15,9 +15,14 @@ app = FastAPI(
 EXPECTED_TOKEN = os.getenv("EXEC_API_TOKEN", "changeme")
 
 
-def validate_token(request: Request):
+def validate_token(request: Request, authorization: Optional[str]):
     token = request.query_params.get("token")
-    if token != EXPECTED_TOKEN:
+    header_token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        header_token = authorization[7:]
+
+    final_token = token or header_token
+    if final_token != EXPECTED_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -31,8 +36,8 @@ class GitRequest(BaseModel):
 
 
 @app.post("/run", summary="Run inline Python code")
-async def run_code(request: Request, payload: CodeRequest):
-    validate_token(request)
+async def run_code(request: Request, payload: CodeRequest, authorization: Optional[str] = Header(None)):
+    validate_token(request, authorization)
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(payload.code)
         file_path = f.name
@@ -49,8 +54,8 @@ async def run_code(request: Request, payload: CodeRequest):
 
 
 @app.post("/run-from-git", summary="Run Python code from Git repo")
-async def run_from_git(request: Request, payload: GitRequest):
-    validate_token(request)
+async def run_from_git(request: Request, payload: GitRequest, authorization: Optional[str] = Header(None)):
+    validate_token(request, authorization)
 
     tmp_dir = tempfile.mkdtemp()
     try:
