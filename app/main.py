@@ -5,6 +5,7 @@ from typing import Optional
 import subprocess
 import tempfile
 import os
+import site
 from git import Repo
 
 app = FastAPI(
@@ -17,18 +18,10 @@ security = HTTPBearer()
 EXPECTED_TOKEN = os.getenv("EXEC_API_TOKEN", "changeme")
 
 
-import logging
-
 def validate_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     token = credentials.credentials
-    logger = logging.getLogger("token-check")
-    logger.setLevel(logging.INFO)
-    logging.basicConfig(level=logging.INFO)
-
-    logger.info(f"Bearer token received: {token}")
-
     if token != EXPECTED_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -54,7 +47,9 @@ async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
         file_path = f.name
 
     try:
-        result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15)
+        env = os.environ.copy()
+        env["PYTHONPATH"] = site.getusersitepackages()
+        result = subprocess.run(["python", file_path], capture_output=True, text=True, timeout=15, env=env)
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,
