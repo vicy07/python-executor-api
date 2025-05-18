@@ -17,10 +17,18 @@ security = HTTPBearer()
 EXPECTED_TOKEN = os.getenv("EXEC_API_TOKEN", "changeme")
 
 
+import logging
+
 def validate_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     token = credentials.credentials
+    logger = logging.getLogger("token-check")
+    logger.setLevel(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
+
+    logger.info(f"Bearer token received: {token}")
+
     if token != EXPECTED_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
