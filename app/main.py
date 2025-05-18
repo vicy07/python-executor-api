@@ -47,7 +47,7 @@ async def run_code(payload: CodeRequest, auth=Depends(validate_token)):
     code_lines = payload.code.strip().splitlines()
     if code_lines and code_lines[0].startswith("# pip:"):
         packages = code_lines[0].replace("# pip:", "").strip()
-        subprocess.run(["pip", "install"] + packages.split(), check=False)
+        subprocess.run(["pip", "install", "--user"] + packages.split(), check=False)
 
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
         f.write(payload.code)
