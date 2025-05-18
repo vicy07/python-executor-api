@@ -27,6 +27,10 @@ RUN apt-get update && \
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
+# Ensure pip cache is accessible
+RUN mkdir -p /home/appuser/.cache/pip && \
+    chown -R appuser:appuser /home/appuser/.cache
+
 # Set the working directory and ownership preemptively
 WORKDIR /app
 RUN chown appuser:appuser /app
@@ -41,11 +45,10 @@ ENV PATH="/app/venv/bin:$PATH"
 # Switch to non-root user before copying application code
 USER appuser
 
-# Copy only the application code with correct ownership
+# Copy application code with correct ownership
 COPY --chown=appuser:appuser . /app/
 
-# Expose default port; Railway will pass PORT=8000 or similar
+# Expose default port
 EXPOSE 8000
 
-# Run the app using shell so PORT can be evaluated correctly
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
