@@ -1,54 +1,53 @@
-# Stage 1: Builder stage
-FROM python:3.13-slim AS builder
+FROM python:3.11-slim
 
-# Install uv
-RUN pip install uv
+# Install essential build tools and libraries for most pip packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    pkg-config \
+    wget \
+    curl \
+    git \
+    libffi-dev \
+    libssl-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libsqlite3-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    locales \
+    tzdata \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
+# Set UTF-8 locale for Unicode support
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
 WORKDIR /app
 
-# Copy requirements
-COPY requirements.txt /app/
+# Create unprivileged user for better security
+RUN useradd -m appuser
+RUN chown -R appuser /app
 
-# Create a virtual environment and install dependencies with uv
-RUN uv venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
-RUN uv pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+COPY requirements.txt requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Stage 2: Final stage
-FROM python:3.13-slim
+COPY . .
 
-# Install git for GitPython usage
-RUN apt-get update && \
-    apt-get install -y git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Ensure pip cache and local install directories are accessible
-RUN mkdir -p /home/appuser/.cache/pip /home/appuser/.local && \
-    chown -R appuser:appuser /home/appuser/.cache /home/appuser/.local
-
-# Set the working directory and ownership preemptively
-WORKDIR /app
-RUN chown appuser:appuser /app
-
-# Copy the virtual environment from the builder stage
-COPY --from=builder /app/venv /app/venv
-RUN chown -R appuser:appuser /app/venv
-
-# Set environment path
-ENV PATH="/app/venv/bin:$PATH"
-
-# Switch to non-root user before copying application code
 USER appuser
 
-# Copy application code with correct ownership
-COPY --chown=appuser:appuser . /app/
-
-# Expose default port
+# Expose the default port for FastAPI/Uvicorn
 EXPOSE 8000
 
+# Start the app with Uvicorn, using a dynamic port if set by the environment
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
